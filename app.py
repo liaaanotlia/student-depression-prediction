@@ -1,73 +1,121 @@
 import streamlit as st
-import numpy as np
-import joblib
+import pandas as pd
+from PIL import Image
+import Levenshtein
+import os
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load model dan scaler
-model = joblib.load('svm_model_depression.pkl')
-scaler = joblib.load('scaler_depression.pkl')
+# --- Fungsi-fungsi Pembantu ---
 
-st.title("Prediksi Risiko Depresi Mahasiswa")
+def cari_gambar_dari_id(id_buku, folder="gambar"):
+    for ext in ['jpg', 'jpeg', 'png']:
+        path = os.path.join(folder, f"{id_buku}.{ext}")
+        if os.path.exists(path):
+            return path
+    return None
 
-with st.form("form_depresi"):
-    gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-    age = st.slider("Usia", 15, 40, 20)
-    academic_pressure = st.slider("Tekanan Akademik (1 = rendah, 5 = tinggi)", 1, 5, 3)
-    work_pressure = st.slider("Tekanan Pekerjaan (0 = tidak ada, 5 = sangat tinggi)", 0, 5, 0)
-    ipk = st.number_input("IPK (0.00–4.00)", 0.0, 4.0, 3.0, step=0.01)
-    cgpa = ipk * 2.5
-    study_satisfaction = st.slider("Kepuasan dalam Belajar (1-5)", 1, 5, 3)
-    job_satisfaction = st.slider("Kepuasan terhadap Pekerjaan (0-5)", 0, 5, 0)
-    sleep_duration = st.selectbox("Durasi Tidur", [
-        "Kurang dari 5 jam", "5-6 jam", "7-8 jam", "Lebih dari 8 jam"])
-    dietary_habits = st.selectbox("Kebiasaan Pola Makan", ["Sehat", "Cukup Sehat", "Tidak Sehat"])
-    suicidal_thoughts = st.selectbox("Pernah Memiliki Pikiran Bunuh Diri?", ["Ya", "Tidak"])
-    work_study_hours = st.slider("Jam Kerja / Belajar per Hari", 0, 16, 4)
-    financial_stress = st.slider("Tingkat Stres Finansial (0 = tidak stres, 5 = sangat stres)", 0, 5, 2)
-    family_history = st.selectbox("Ada Riwayat Gangguan Mental dalam Keluarga?", ["Ya", "Tidak"])
+def hitung_kemiripan_levenshtein(a, b):
+    if not isinstance(a, str) or not isinstance(b, str):
+        return 0 # Handle non-string values
+    if not a or not b:
+        return 0
+    return (1 - Levenshtein.distance(a.lower(), b.lower()) / max(len(a), len(b))) * 100
 
-    submit = st.form_submit_button("Lakukan Prediksi")
+# --- Load Data ---
+df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
 
-if submit:
-    gender_map = {"Laki-laki": 0, "Perempuan": 1}
-    sleep_map = {
-        "5-6 jam": 0,
-        "Kurang dari 5 jam": 1,
-        "7-8 jam": 2,
-        "Lebih dari 8 jam": 3
-    }
-    diet_map = {
-        "Sehat": 0,
-        "Cukup Sehat": 1,
-        "Tidak Sehat": 2
-    }
-    binary_map = {"Tidak": 0, "Ya": 1}
+# Preprocessing: Isi NaN di 'Sinopsis/Deskripsi' dengan string kosong sebelum TF-IDF
+# Ini penting agar TF-IDF tidak error dan Levenshtein tidak error
+df['Judul'].fillna('', inplace=True)
+df['Sinopsis/Deskripsi'].fillna('', inplace=True)
 
-    # Encode input user
-    encoded_input = [
-        gender_map[gender],
-        age,
-        academic_pressure,
-        work_pressure,
-        cgpa,
-        study_satisfaction,
-        job_satisfaction,
-        sleep_map[sleep_duration],
-        diet_map[dietary_habits],
-        binary_map[suicidal_thoughts],
-        work_study_hours,
-        financial_stress,
-        binary_map[family_history]
-    ]
+# --- Implementasi Content-Based Filtering (TF-IDF pada Sinopsis) ---
 
-    input_array = np.array([encoded_input])
-    input_scaled = scaler.transform(input_array)
+# Inisialisasi TfidfVectorizer
+# stop_words='english' bisa digunakan jika teksnya berbahasa inggris dan ingin menghilangkan kata umum
+tfidf_vectorizer = TfidfVectorizer()
 
-    # Prediksi
-    prediction = model.predict(input_scaled)[0]
+# Fit dan transform sinopsis untuk mendapatkan matriks TF-IDF
+tfidf_matrix = tfidf_vectorizer.fit_transform(df['Sinopsis/Deskripsi'])
 
-    # Tampilkan hasil prediksi
-    st.subheader("Hasil Prediksi:")
-    if prediction == 1:
-        st.error("⚠️ Anda terindikasi memiliki risiko **depresi**. Disarankan untuk berbicara dengan profesional kesehatan mental.")
+# --- Setup UI Streamlit ---
+st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
+st.title("📚 Sistem Rekomendasi Buku (CBF TF-IDF Sinopsis + Levenshtein Judul)")
+
+# Selectbox untuk memilih buku favorit
+judul_pilihan = st.selectbox("📘 Pilih buku favorit Anda:", df['Judul'].unique()) # .unique() untuk menghindari duplikasi di selectbox
+
+if judul_pilihan:
+    # Ambil data buku yang dipilih
+    data_pilihan = df[df['Judul'] == judul_pilihan].iloc[0]
+
+    st.subheader("📖 Detail Buku yang Dipilih:")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        gambar = cari_gambar_dari_id(data_pilihan['ID'])
+        if gambar:
+            st.image(Image.open(gambar), width=150)
+        else:
+            st.warning("Gambar tidak ditemukan.")
+    with col2:
+        st.markdown(f"**Judul:** {data_pilihan['Judul']}  \n"
+                    f"**Penulis:** {data_pilihan['Penulis']}  \n"
+                    f"**Penerbit:** {data_pilihan['Penerbit']}  \n"
+                    f"**Tanggal Terbit:** {data_pilihan['Tanggal Terbit']}  \n"
+                    f"**Halaman:** {data_pilihan['Halaman']}  \n"
+                    f"**ISBN:** {data_pilihan['ISBN']}")
+        with st.expander("📝 Sinopsis"):
+            st.write(data_pilihan['Sinopsis/Deskripsi'])
+
+    st.markdown("---")
+
+    # --- Hitung Skor Kemiripan ---
+
+    # 1. Skor Kemiripan Sinopsis (menggunakan Cosine Similarity dari TF-IDF)
+    idx_buku_pilihan = df[df['ID'] == data_pilihan['ID']].index[0]
+    cosine_skor = cosine_similarity(tfidf_matrix[idx_buku_pilihan:idx_buku_pilihan+1], tfidf_matrix).flatten()
+    df['Skor_Sinopsis_TFIDF'] = cosine_skor * 100 # Konversi ke persentase
+
+    # 2. Skor Kemiripan Judul (menggunakan Levenshtein Distance)
+    df['Skor_Judul_Levenshtein'] = df['Judul'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Judul']))
+
+    # 3. Gabungkan Kedua Skor (dengan bobot, Anda bisa menyesuaikan bobot ini)
+    # Contoh: Sinopsis (TF-IDF) 70%, Judul (Levenshtein) 30%
+    # Anda bisa eksperimen dengan bobot ini (misalnya 0.5, 0.5 atau 0.8, 0.2)
+    bobot_sinopsis = 0.7
+    bobot_judul = 0.3
+    df['Skor_Total'] = (df['Skor_Sinopsis_TFIDF'] * bobot_sinopsis) + \
+                       (df['Skor_Judul_Levenshtein'] * bobot_judul)
+
+    # Ambil rekomendasi tertinggi, kecuali buku itu sendiri
+    # Pastikan buku yang dipilih tidak muncul di rekomendasi
+    df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(3)
+
+    st.subheader("📚 Rekomendasi Buku Serupa:")
+    if not df_rekomendasi.empty:
+        for _, row in df_rekomendasi.iterrows():
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                gambar = cari_gambar_dari_id(row['ID'])
+                if gambar:
+                    st.image(Image.open(gambar), width=150)
+                else:
+                    st.warning("Gambar tidak ditemukan.")
+            with col2:
+                st.markdown(f"""
+    ### {row['Judul']}
+    💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%
+    ➡️ (Sinopsis (TF-IDF): {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul (Levenshtein): {round(row['Skor_Judul_Levenshtein'], 2)}%)
+
+    **Penulis:** {row['Penulis']}
+    **Penerbit:** {row['Penerbit']}
+    **Tanggal Terbit:** {row['Tanggal Terbit']}
+    **Halaman:** {row['Halaman']}
+    **ISBN:** {row['ISBN']}
+    """)
+                with st.expander("📝 Sinopsis"):
+                    st.write(row['Sinopsis/Deskripsi'])
+            st.markdown("---")
     else:
-        st.success("✅ Anda tidak terindikasi mengalami depresi berdasarkan data yang diberikan.")
+        st.info("Tidak ada rekomendasi yang ditemukan untuk buku ini.")
