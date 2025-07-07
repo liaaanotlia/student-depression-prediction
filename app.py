@@ -6,11 +6,10 @@ import joblib
 model = joblib.load('svm_model_depression.pkl')
 scaler = joblib.load('scaler_depression.pkl')
 
-st.title("Aplikasi Prediksi Risiko Depresi Mahasiswa")
+st.title("Prediksi Risiko Depresi Mahasiswa")
 
 st.markdown("""
-Aplikasi ini membantu memprediksi kemungkinan depresi berdasarkan faktor-faktor seperti tekanan akademik, tidur, dan kebiasaan hidup.
-Silakan isi formulir berikut:
+Aplikasi ini digunakan untuk membantu memprediksi kemungkinan risiko depresi pada mahasiswa berdasarkan berbagai faktor akademik, psikologis, dan gaya hidup. Silakan isi formulir berikut sesuai kondisi Anda.
 """)
 
 with st.form("form_depresi"):
@@ -19,75 +18,61 @@ with st.form("form_depresi"):
     academic_pressure = st.slider("Tekanan Akademik (1 = rendah, 5 = tinggi)", 1, 5, 3)
     work_pressure = st.slider("Tekanan Pekerjaan (0 = tidak ada, 5 = sangat tinggi)", 0, 5, 0)
     cgpa = st.number_input("Nilai IPK / CGPA", 0.0, 10.0, 7.0)
-    study_satisfaction = st.slider("Kepuasan Belajar (1-5)", 1, 5, 3)
-    job_satisfaction = st.slider("Kepuasan Pekerjaan (0-5)", 0, 5, 0)
+    study_satisfaction = st.slider("Kepuasan dalam Belajar (1-5)", 1, 5, 3)
+    job_satisfaction = st.slider("Kepuasan terhadap Pekerjaan (0-5)", 0, 5, 0)
     sleep_duration = st.selectbox("Durasi Tidur", [
-        "Kurang dari 5 jam", "5–6 jam", "7–8 jam", "Lebih dari 8 jam"])
-    dietary_habits = st.selectbox("Kebiasaan Makan", ["Sehat", "Cukup Sehat", "Tidak Sehat"])
+        "Kurang dari 5 jam", "5-6 jam", "7-8 jam", "Lebih dari 8 jam"])
+    dietary_habits = st.selectbox("Kebiasaan Pola Makan", ["Sehat", "Cukup Sehat", "Tidak Sehat"])
     suicidal_thoughts = st.selectbox("Pernah Memiliki Pikiran Bunuh Diri?", ["Ya", "Tidak"])
-    work_study_hours = st.slider("Jam Belajar / Kerja per Hari", 0, 16, 4)
-    financial_stress = st.slider("Stres Finansial (0-5)", 0, 5, 2)
-    family_history = st.selectbox("Riwayat Gangguan Mental dalam Keluarga?", ["Ya", "Tidak"])
+    work_study_hours = st.slider("Jam Kerja / Belajar per Hari", 0, 16, 4)
+    financial_stress = st.slider("Tingkat Stres Finansial (0 = tidak stres, 5 = sangat stres)", 0, 5, 2)
+    family_history = st.selectbox("Ada Riwayat Gangguan Mental dalam Keluarga?", ["Ya", "Tidak"])
 
     submit = st.form_submit_button("Lakukan Prediksi")
 
 if submit:
-    # Mapping Bahasa Indonesia → Label Model
-    gender = "Female" if gender == "Perempuan" else "Male"
-
+    # Mapping Bahasa Indonesia ke label numerik sesuai hasil LabelEncoder
+    gender_map = {"Laki-laki": 0, "Perempuan": 1}
     sleep_map = {
-        "Kurang dari 5 jam": "Less than 5 hours",
-        "5–6 jam": "5-6 hours",
-        "7–8 jam": "7-8 hours",
-        "Lebih dari 8 jam": "More than 8 hours"
+        "5-6 jam": 0,
+        "Kurang dari 5 jam": 1,
+        "7-8 jam": 2,
+        "Lebih dari 8 jam": 3
     }
-    sleep_duration = sleep_map[sleep_duration]
-
     diet_map = {
-        "Sehat": "Healthy",
-        "Cukup Sehat": "Moderate",
-        "Tidak Sehat": "Unhealthy"
+        "Sehat": 0,
+        "Cukup Sehat": 1,
+        "Tidak Sehat": 2
     }
-    dietary_habits = diet_map[dietary_habits]
+    binary_map = {"Tidak": 0, "Ya": 1}
 
-    suicidal_thoughts = "Yes" if suicidal_thoughts == "Ya" else "No"
-    family_history = "Yes" if family_history == "Ya" else "No"
+    # Encode input user
+    encoded_input = [
+        gender_map[gender],
+        age,
+        academic_pressure,
+        work_pressure,
+        cgpa,
+        study_satisfaction,
+        job_satisfaction,
+        sleep_map[sleep_duration],
+        diet_map[dietary_habits],
+        binary_map[suicidal_thoughts],
+        work_study_hours,
+        financial_stress,
+        binary_map[family_history]
+    ]
 
-    # Urutan fitur sama seperti saat training
-    input_text = {
-        "Gender": gender,
-        "Age": age,
-        "Academic Pressure": academic_pressure,
-        "Work Pressure": work_pressure,
-        "CGPA": cgpa,
-        "Study Satisfaction": study_satisfaction,
-        "Job Satisfaction": job_satisfaction,
-        "Sleep Duration": sleep_duration,
-        "Dietary Habits": dietary_habits,
-        "Have you ever had suicidal thoughts ?": suicidal_thoughts,
-        "Work/Study Hours": work_study_hours,
-        "Financial Stress": financial_stress,
-        "Family History of Mental Illness": family_history
-    }
+    # Ubah jadi array 2D dan scaling
+    input_array = np.array([encoded_input])
+    input_scaled = scaler.transform(input_array)
 
-    # Convert to DataFrame → lalu transform pakai scaler
-    import pandas as pd
-    input_df = pd.DataFrame([input_text])
-    input_encoded = input_df.copy()
-
-    # Apply LabelEncoder ke kolom-kolom tertentu (sama kayak training)
-    label_cols = ['Gender', 'Sleep Duration', 'Dietary Habits',
-                  'Have you ever had suicidal thoughts ?', 'Family History of Mental Illness']
-    for col in label_cols:
-        le = joblib.load(f'labelencoder_{col}.pkl')  # kamu harus simpan encoder saat training
-        input_encoded[col] = le.transform(input_encoded[col])
-
-    input_scaled = scaler.transform(input_encoded)
-
+    # Prediksi
     prediction = model.predict(input_scaled)[0]
 
+    # Tampilkan hasil prediksi
     st.subheader("Hasil Prediksi:")
     if prediction == 1:
-        st.error("⚠️ Anda terindikasi memiliki risiko depresi. Silakan pertimbangkan untuk berkonsultasi dengan profesional.")
+        st.error("⚠️ Anda terindikasi memiliki risiko **depresi**. Disarankan untuk berbicara dengan profesional kesehatan mental.")
     else:
-        st.success("✅ Tidak terindikasi mengalami depresi berdasarkan data yang Anda berikan.")
+        st.success("✅ Anda tidak terindikasi mengalami depresi berdasarkan data yang diberikan.")
