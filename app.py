@@ -8,10 +8,6 @@ scaler = joblib.load('scaler_depression.pkl')
 
 st.title("Prediksi Risiko Depresi Mahasiswa")
 
-st.markdown("""
-Aplikasi ini digunakan untuk membantu memprediksi kemungkinan risiko depresi pada mahasiswa berdasarkan berbagai faktor akademik, psikologis, dan gaya hidup. Silakan isi formulir berikut sesuai kondisi Anda.
-""")
-
 with st.form("form_depresi"):
     gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
     age = st.slider("Usia", 15, 40, 20)
@@ -31,7 +27,6 @@ with st.form("form_depresi"):
     submit = st.form_submit_button("Lakukan Prediksi")
 
 if submit:
-    # Mapping Bahasa Indonesia ke label numerik sesuai hasil LabelEncoder
     gender_map = {"Laki-laki": 0, "Perempuan": 1}
     sleep_map = {
         "5-6 jam": 0,
@@ -63,7 +58,6 @@ if submit:
         binary_map[family_history]
     ]
 
-    # Ubah jadi array 2D dan scaling
     input_array = np.array([encoded_input])
     input_scaled = scaler.transform(input_array)
 
