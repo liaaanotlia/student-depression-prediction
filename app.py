@@ -13,7 +13,8 @@ with st.form("form_depresi"):
     age = st.slider("Usia", 15, 40, 20)
     academic_pressure = st.slider("Tekanan Akademik (1 = rendah, 5 = tinggi)", 1, 5, 3)
     work_pressure = st.slider("Tekanan Pekerjaan (0 = tidak ada, 5 = sangat tinggi)", 0, 5, 0)
-    cgpa = st.number_input("Nilai IPK / CGPA", 0.0, 10.0, 7.0)
+    ipk = st.number_input("IPK (0.00–4.00)", 0.0, 4.0, 3.0, step=0.01)
+    cgpa = ipk * 2.5
     study_satisfaction = st.slider("Kepuasan dalam Belajar (1-5)", 1, 5, 3)
     job_satisfaction = st.slider("Kepuasan terhadap Pekerjaan (0-5)", 0, 5, 0)
     sleep_duration = st.selectbox("Durasi Tidur", [
