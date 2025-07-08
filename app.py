@@ -2,51 +2,51 @@ import streamlit as st
 import numpy as np
 import joblib
 
-# Load model dan scaler
+# Load model and scaler
 model = joblib.load('svm_model_depression.pkl')
 scaler = joblib.load('scaler_depression.pkl')
 
-st.title("Prediksi Risiko Depresi Mahasiswa")
+st.title("Student Depression Risk Prediction")
 
 st.markdown("""
-Silakan isi formulir berikut sesuai kondisi Anda.
+Please fill out the form below according to your condition.
 """)
 
-with st.form("form_depresi"):
-    gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-    age = st.slider("Usia", 15, 40, 20)
-    academic_pressure = st.slider("Tekanan Akademik (1 = rendah, 5 = tinggi)", 1, 5, 3)
-    work_pressure = st.slider("Tekanan Pekerjaan (0 = tidak ada, 5 = sangat tinggi)", 0, 5, 0)
-    cgpa = st.number_input("Nilai IPK / CGPA", 0.0, 10.0, 7.0)
-    study_satisfaction = st.slider("Kepuasan dalam Belajar (1-5)", 1, 5, 3)
-    job_satisfaction = st.slider("Kepuasan terhadap Pekerjaan (0-5)", 0, 5, 0)
-    sleep_duration = st.selectbox("Durasi Tidur", [
-        "Kurang dari 5 jam", "5-6 jam", "7-8 jam", "Lebih dari 8 jam"])
-    dietary_habits = st.selectbox("Kebiasaan Pola Makan", ["Sehat", "Cukup Sehat", "Tidak Sehat"])
-    suicidal_thoughts = st.selectbox("Pernah Memiliki Pikiran Bunuh Diri?", ["Ya", "Tidak"])
-    work_study_hours = st.slider("Jam Kerja / Belajar per Hari", 0, 16, 4)
-    financial_stress = st.slider("Tingkat Stres Finansial (0 = tidak stres, 5 = sangat stres)", 0, 5, 2)
-    family_history = st.selectbox("Ada Riwayat Gangguan Mental dalam Keluarga?", ["Ya", "Tidak"])
+with st.form("depression_form"):
+    gender = st.selectbox("Gender", ["Male", "Female"])
+    age = st.slider("Age", 15, 40, 20)
+    academic_pressure = st.slider("Academic Pressure (1 = low, 5 = high)", 1, 5, 3)
+    work_pressure = st.slider("Work Pressure (0 = none, 5 = very high)", 0, 5, 0)
+    cgpa = st.number_input("GPA / CGPA Score", 0.0, 10.0, 7.0)
+    study_satisfaction = st.slider("Study Satisfaction (1-5)", 1, 5, 3)
+    job_satisfaction = st.slider("Job Satisfaction (0-5)", 0, 5, 0)
+    sleep_duration = st.selectbox("Sleep Duration", [
+        "Less than 5 hours", "5-6 hours", "7-8 hours", "More than 8 hours"])
+    dietary_habits = st.selectbox("Dietary Habits", ["Healthy", "Moderately Healthy", "Unhealthy"])
+    suicidal_thoughts = st.selectbox("Ever Had Suicidal Thoughts?", ["Yes", "No"])
+    work_study_hours = st.slider("Work / Study Hours per Day", 0, 16, 4)
+    financial_stress = st.slider("Financial Stress Level (0 = not stressed, 5 = very stressed)", 0, 5, 2)
+    family_history = st.selectbox("Family History of Mental Disorder?", ["Yes", "No"])
 
-    submit = st.form_submit_button("Lakukan Prediksi")
+    submit = st.form_submit_button("Predict")
 
 if submit:
-    # Mapping Bahasa Indonesia ke label numerik sesuai hasil LabelEncoder
-    gender_map = {"Laki-laki": 0, "Perempuan": 1}
+    # Map English labels to numerical labels based on LabelEncoder results
+    gender_map = {"Male": 0, "Female": 1}
     sleep_map = {
-        "5-6 jam": 0,
-        "Kurang dari 5 jam": 1,
-        "7-8 jam": 2,
-        "Lebih dari 8 jam": 3
+        "5-6 hours": 0,
+        "Less than 5 hours": 1,
+        "7-8 hours": 2,
+        "More than 8 hours": 3
     }
     diet_map = {
-        "Sehat": 0,
-        "Cukup Sehat": 1,
-        "Tidak Sehat": 2
+        "Healthy": 0,
+        "Moderately Healthy": 1,
+        "Unhealthy": 2
     }
-    binary_map = {"Tidak": 0, "Ya": 1}
+    binary_map = {"No": 0, "Yes": 1}
 
-    # Encode input user
+    # Encode user input
     encoded_input = [
         gender_map[gender],
         age,
@@ -63,16 +63,16 @@ if submit:
         binary_map[family_history]
     ]
 
-    # Ubah jadi array 2D dan scaling
+    # Convert to 2D array and scale
     input_array = np.array([encoded_input])
     input_scaled = scaler.transform(input_array)
 
-    # Prediksi
+    # Predict
     prediction = model.predict(input_scaled)[0]
 
-    # Tampilkan hasil prediksi
-    st.subheader("Hasil Prediksi:")
+    # Display prediction results
+    st.subheader("Prediction Result:")
     if prediction == 1:
-        st.error("⚠️ Anda terindikasi memiliki risiko **depresi**. Disarankan untuk berbicara dengan profesional kesehatan mental.")
+        st.error("⚠️ You are indicated to be at risk of **depression**. It is recommended to speak with a mental health professional.")
     else:
-        st.success("✅ Anda tidak terindikasi mengalami depresi berdasarkan data yang diberikan.")
+        st.success("✅ You are not indicated to be experiencing depression based on the provided data.")
