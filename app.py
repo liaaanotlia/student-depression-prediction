@@ -17,7 +17,7 @@ with st.form("depression_form"):
     age = st.slider("Age", 15, 40, 20)
     academic_pressure = st.slider("Academic Pressure (1 = low, 5 = high)", 1, 5, 3)
     work_pressure = st.slider("Work Pressure (0 = none, 5 = very high)", 0, 5, 0)
-    cgpa = st.number_input("GPA / CGPA Score", 0.0, 10.0, 7.0)
+    cgpa = st.number_input("GPA / CGPA Score (0-10 scale)", 0.0, 10.0, 7.0)
     study_satisfaction = st.slider("Study Satisfaction (1-5)", 1, 5, 3)
     job_satisfaction = st.slider("Job Satisfaction (0-5)", 0, 5, 0)
     sleep_duration = st.selectbox("Sleep Duration", [
