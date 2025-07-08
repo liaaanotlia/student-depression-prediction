@@ -9,7 +9,7 @@ scaler = joblib.load('scaler_depression.pkl')
 st.title("Prediksi Risiko Depresi Mahasiswa")
 
 st.markdown("""
-Aplikasi ini digunakan untuk membantu memprediksi kemungkinan risiko depresi pada mahasiswa berdasarkan berbagai faktor akademik, psikologis, dan gaya hidup. Silakan isi formulir berikut sesuai kondisi Anda.
+Silakan isi formulir berikut sesuai kondisi Anda.
 """)
 
 with st.form("form_depresi"):
